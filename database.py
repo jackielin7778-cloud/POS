@@ -98,6 +98,15 @@ def add_member(name, phone, email=""):
     conn.close()
 
 
+def get_member_by_phone(phone):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM members WHERE phone = ?", (phone,))
+    member = cursor.fetchone()
+    conn.close()
+    return member
+
+
 # ---------- 銷售 ----------
 
 def create_sale(member_id, subtotal, discount, total, cash, change_amount, items=None):
