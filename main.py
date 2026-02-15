@@ -1,3 +1,10 @@
+這是我的失誤！之前貼出的 code 有問題。以下是**正確的 main.py**，請重新复制：
+
+```python
+"""
+POS 收銀系統 - Streamlit Web Application
+"""
+
 import streamlit as st
 import sqlite3
 from datetime import datetime
@@ -217,7 +224,7 @@ init_db()
 # ============ Streamlit 頁面配置 ============
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
 
-# _session_state_ for cart
+# session_state for cart
 if 'cart' not in st.session_state:
     st.session_state.cart = []
 if 'current_member' not in st.session_state:
@@ -261,10 +268,8 @@ if page == "收銀前台":
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        # 搜尋
         search = st.text_input("🔍 搜尋商品", placeholder="輸入商品名稱或條碼...")
         
-        # 商品網格
         products = get_products(search)
         
         if products:
@@ -282,7 +287,6 @@ if page == "收銀前台":
                         
                         if p[4] > 0:
                             if st.button(f"加入購物車", key=f"add_{p[0]}"):
-                                # 檢查購物車是否已有
                                 found = False
                                 for item in st.session_state.cart:
                                     if item['product_id'] == p[0]:
@@ -309,7 +313,6 @@ if page == "收銀前台":
     with col2:
         st.markdown("### 🛒 購物車")
         
-        # 會員選擇
         if st.session_state.current_member:
             st.success(f"👤 {st.session_state.current_member['name']} (積分: {st.session_state.current_member[4]})")
             if st.button("清除會員"):
@@ -327,7 +330,6 @@ if page == "收銀前台":
         
         st.divider()
         
-        # 購物車內容
         for i, item in enumerate(st.session_state.cart):
             with st.container():
                 c1, c2, c3 = st.columns([2, 1, 1])
@@ -352,7 +354,6 @@ if page == "收銀前台":
                     st.rerun()
                 st.divider()
         
-        # 金額計算
         if st.session_state.cart:
             subtotal = sum(item['subtotal'] for item in st.session_state.cart)
             discount = st.number_input("折扣", min_value=0, max_value=int(subtotal), value=0)
@@ -362,7 +363,6 @@ if page == "收銀前台":
             st.markdown(f"**折扣:** -${discount:.0f}")
             st.markdown(f"### 總計: ${total:.0f}")
             
-            # 結帳
             with st.form("checkout_form"):
                 cash = st.number_input("收款金額", min_value=0, value=int(total))
                 submitted = st.form_submit_button("💰 結帳")
@@ -371,7 +371,6 @@ if page == "收銀前台":
                     if cash >= total:
                         change = cash - total
                         
-                        # 建立銷售
                         member_id = st.session_state.current_member[0] if st.session_state.current_member else None
                         sale_id = create_sale(
                             member_id=member_id,
@@ -382,7 +381,6 @@ if page == "收銀前台":
                             change_amount=change
                         )
                         
-                        # 清空購物車
                         st.session_state.cart = []
                         st.session_state.current_member = None
                         
@@ -402,7 +400,6 @@ if page == "收銀前台":
 elif page == "商品管理":
     st.title("📦 商品管理")
     
-    # 新增商品
     with st.expander("➕ 新增商品", expanded=False):
         with st.form("add_product"):
             col1, col2 = st.columns(2)
@@ -410,8 +407,8 @@ elif page == "商品管理":
                 name = st.text_input("商品名稱 *")
                 price = st.number_input("售價 *", min_value=0, value=0)
                 cost = st.number_input("成本", min_value=0, value=0)
-            with col2 st.number_input("庫存", min:
-                stock =_value=0, value=0)
+            with col2:
+                stock = st.number_input("庫存", min_value=0, value=0)
                 barcode = st.text_input("條碼")
                 category = st.text_input("類別")
             submitted = st.form_submit_button("儲存")
@@ -423,12 +420,10 @@ elif page == "商品管理":
                 else:
                     st.error("請輸入商品名稱和售價")
     
-    # 商品列表
     products = get_products()
     if products:
         df = pd.DataFrame(products, columns=["ID", "名稱", "售價", "成本", "庫存", "條碼", "類別", "建立時間"])
         
-        # 編輯/刪除
         for i, row in df.iterrows():
             with st.expander(f"{row['名稱']} - ${row['售價']:.0f} (庫存: {row['庫存']})"):
                 c1, c2 = st.columns(2)
@@ -457,7 +452,6 @@ elif page == "商品管理":
 elif page == "會員管理":
     st.title("👥 會員管理")
     
-    # 新增會員
     with st.expander("➕ 新增會員", expanded=False):
         with st.form("add_member"):
             col1, col2 = st.columns(2)
@@ -473,7 +467,6 @@ elif page == "會員管理":
                 else:
                     st.error("請輸入姓名和電話")
     
-    # 會員列表
     members = get_members()
     if members:
         df = pd.DataFrame(members, columns=["ID", "姓名", "電話", "Email", "積分", "總消費", "建立時間"])
@@ -485,12 +478,10 @@ elif page == "會員管理":
 elif page == "銷售報表":
     st.title("📊 銷售報表")
     
-    # 篩選
     col1, col2 = st.columns(2)
     start_date = col1.date_input("開始日期")
     end_date = col2.date_input("結束日期")
     
-    # 銷售記錄
     sales = get_sales(str(start_date), str(end_date))
     if sales:
         df = pd.DataFrame(sales, columns=["ID", "會員ID", "小計", "折扣", "總額", "收款", "找零", "付款方式", "時間", "會員名"])
@@ -498,7 +489,6 @@ elif page == "銷售報表":
         df["時間"] = pd.to_datetime(df["時間"]).dt.strftime("%Y-%m-%d %H:%M")
         st.dataframe(df, use_container_width=True)
         
-        # 統計
         total_revenue = df["總額"].sum()
         total_orders = len(df)
         total_discount = df["折扣"].sum()
@@ -508,7 +498,6 @@ elif page == "銷售報表":
         c2.metric("訂單數", total_orders)
         c3.metric("總折扣", f"${total_discount:,.0f}")
         
-        # 熱銷商品
         st.subheader("🔥 熱銷商品排行")
         top_products = get_top_products()
         if top_products:
@@ -516,3 +505,9 @@ elif page == "銷售報表":
             st.dataframe(top_df, use_container_width=True)
     else:
         st.info("查無銷售記錄")
+```
+
+請用這版正確的 code 替换您現在的 main.py！
+
+Tokens: 19 in / 428 out  
+Context: 0/200k (0%)
