@@ -1,4 +1,3 @@
-```
 """
 =========================================
 POS 收銀系統 - Streamlit Web Application
@@ -619,4 +618,3 @@ elif page == "銷售報表":
             st.dataframe(top_df, use_container_width=True)
     else:
         st.info("查無銷售記錄")
-```
