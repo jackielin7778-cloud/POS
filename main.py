@@ -1,4 +1,3 @@
-"""
 =========================================
 POS 收銀系統 - Streamlit Web Application
 =========================================
@@ -19,17 +18,10 @@ import sqlite3
 from datetime import datetime
 import pandas as pd
 
-# 資料庫路徑
 DB_PATH = "pos.db"
 
 # ============ 價格計算函數 ============
 def calculate_price_inc_tax(price_ex_tax):
-    """
-    計算含稅售價
-    公式: 售價應稅 = 售價未稅 × 1.05
-    參數: price_ex_tax (float) - 售價未稅
-    返回: float - 售價應稅 (四捨五入至小數點後一位)
-    """
     if price_ex_tax is None or price_ex_tax == "":
         return 0.0
     try:
@@ -40,20 +32,11 @@ def calculate_price_inc_tax(price_ex_tax):
         return 0.0
 
 def calculate_price_ex_tax(price_inc_tax):
-    """
-    計算未稅售價
-    公式: 稅額 = 售價應稅 ÷ 21 (四捨五入到小數點後一位) → 再四捨五入至整數
-         售價未稅 = 售價應稅 - 稅額
-    參數: price_inc_tax (float) - 售價應稅
-    返回: float - 售價未稅 (四捨五入至小數點後一位)
-    """
     if price_inc_tax is None or price_inc_tax == "":
         return 0.0
     try:
         price = float(price_inc_tax)
-        # 計算稅額：先除以 21，四捨五入到小數點後一位，再四捨五入到整數
         tax_amount = round(round(price / 21, 1))
-        # 售價未稅 = 售價應稅 - 稅額
         result = round(price - tax_amount, 1)
         return result
     except (ValueError, TypeError):
@@ -61,17 +44,15 @@ def calculate_price_ex_tax(price_inc_tax):
 
 # ============ 資料庫初始化 ============
 def init_db():
-    """初始化資料庫，建立必要的資料表"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # 商品資料表 - 包含未稅與應稅兩個價格欄位
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            price_ex_tax REAL NOT NULL DEFAULT 0,  -- 售價未稅
-            price_inc_tax REAL NOT NULL DEFAULT 0,  -- 售價應稅
+            price_ex_tax REAL NOT NULL DEFAULT 0,
+            price_inc_tax REAL NOT NULL DEFAULT 0,
             cost REAL DEFAULT 0,
             stock INTEGER DEFAULT 0,
             barcode TEXT UNIQUE,
@@ -80,7 +61,6 @@ def init_db():
         )
     ''')
     
-    # 會員資料表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +73,6 @@ def init_db():
         )
     ''')
     
-    # 銷售資料表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,7 +88,6 @@ def init_db():
         )
     ''')
     
-    # 銷售明細資料表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sale_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,14 +107,10 @@ def init_db():
 
 # ============ 商品操作 ============
 def get_products(search=""):
-    """取得商品列表"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     if search:
-        cursor.execute(
-            "SELECT * FROM products WHERE name LIKE ? OR barcode LIKE ? ORDER BY name", 
-            (f"%{search}%", f"%{search}%")
-        )
+        cursor.execute("SELECT * FROM products WHERE name LIKE ? OR barcode LIKE ? ORDER BY name", (f"%{search}%", f"%{search}%"))
     else:
         cursor.execute("SELECT * FROM products ORDER BY name")
     products = cursor.fetchall()
@@ -144,29 +118,22 @@ def get_products(search=""):
     return products
 
 def add_product(name, price_ex_tax, price_inc_tax, cost=0, stock=0, barcode="", category=""):
-    """新增商品"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO products (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category)
-    )
+    cursor.execute("INSERT INTO products (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category))
     conn.commit()
     conn.close()
 
 def update_product(product_id, name, price_ex_tax, price_inc_tax, cost, stock, barcode, category):
-    """更新商品資料"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE products SET name=?, price_ex_tax=?, price_inc_tax=?, cost=?, stock=?, barcode=?, category=? WHERE id=?",
-        (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category, product_id)
-    )
+    cursor.execute("UPDATE products SET name=?, price_ex_tax=?, price_inc_tax=?, cost=?, stock=?, barcode=?, category=? WHERE id=?",
+        (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category, product_id))
     conn.commit()
     conn.close()
 
 def delete_product(product_id):
-    """刪除商品"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM products WHERE id=?", (product_id,))
@@ -175,7 +142,6 @@ def delete_product(product_id):
 
 # ============ 會員操作 ============
 def get_members(search=""):
-    """取得會員列表"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     if search:
@@ -187,18 +153,13 @@ def get_members(search=""):
     return members
 
 def add_member(name, phone, email=""):
-    """新增會員"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO members (name, phone, email) VALUES (?, ?, ?)",
-        (name, phone, email)
-    )
+    cursor.execute("INSERT INTO members (name, phone, email) VALUES (?, ?, ?)", (name, phone, email))
     conn.commit()
     conn.close()
 
 def get_member_by_id(member_id):
-    """依ID取得會員"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM members WHERE id=?", (member_id,))
@@ -208,22 +169,16 @@ def get_member_by_id(member_id):
 
 # ============ 銷售操作 ============
 def create_sale(member_id, subtotal, discount, total, cash, change_amount, payment_method="cash", items=None):
-    """建立銷售記錄"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
-    cursor.execute(
-        "INSERT INTO sales (member_id, subtotal, discount, total, cash, change_amount, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (member_id, subtotal, discount, total, cash, change_amount, payment_method)
-    )
+    cursor.execute("INSERT INTO sales (member_id, subtotal, discount, total, cash, change_amount, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (member_id, subtotal, discount, total, cash, change_amount, payment_method))
     sale_id = cursor.lastrowid
     
     if items:
         for item in items:
-            cursor.execute(
-                "INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)",
-                (sale_id, item['product_id'], item['name'], item['quantity'], item['price'], item['subtotal'])
-            )
+            cursor.execute("INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)",
+                (sale_id, item['product_id'], item['name'], item['quantity'], item['price'], item['subtotal']))
             cursor.execute("UPDATE products SET stock = stock - ? WHERE id=?", (item['quantity'], item['product_id']))
     
     if member_id:
@@ -235,7 +190,6 @@ def create_sale(member_id, subtotal, discount, total, cash, change_amount, payme
     return sale_id
 
 def get_sales(start_date="", end_date=""):
-    """取得銷售記錄"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     query = "SELECT s.*, m.name as member_name FROM sales s LEFT JOIN members m ON s.member_id = m.id WHERE 1=1"
@@ -253,7 +207,6 @@ def get_sales(start_date="", end_date=""):
     return sales
 
 def get_sale_details(sale_id):
-    """取得銷售明細"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sale_items WHERE sale_id=?", (sale_id,))
@@ -262,56 +215,34 @@ def get_sale_details(sale_id):
     return items
 
 def get_daily_sales():
-    """取得今日營收統計"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT COUNT(*) as total_orders, SUM(total) as total_revenue, SUM(discount) as total_discount
-        FROM sales WHERE date(created_at) = date('now')
-    """)
+    cursor.execute("SELECT COUNT(*) as total_orders, SUM(total) as total_revenue, SUM(discount) as total_discount FROM sales WHERE date(created_at) = date('now')")
     result = cursor.fetchone()
     conn.close()
     return {'orders': result[0] or 0, 'revenue': result[1] or 0, 'discount': result[2] or 0}
 
 def get_top_products(limit=10):
-    """取得熱銷商品排行"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT product_name, SUM(quantity) as total_qty, SUM(subtotal) as total_sales
-        FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT ?
-    """, (limit,))
+    cursor.execute("SELECT product_name, SUM(quantity) as total_qty, SUM(subtotal) as total_sales FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT ?", (limit,))
     products = cursor.fetchall()
     conn.close()
     return products
 
-# 初始化資料庫
 init_db()
 
-# ============ Streamlit 頁面配置 ============
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
 
-# Session state for cart
 if 'cart' not in st.session_state:
     st.session_state.cart = []
 if 'current_member' not in st.session_state:
     st.session_state.current_member = None
 
-# CSS 樣式
 st.markdown("""
 <style>
-    .product-card {
-        background-color: white;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 15px;
-        text-align: center;
-        transition: transform 0.2s;
-    }
-    .product-card:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
+    .product-card { background-color: white; border: 1px solid #ddd; border-radius: 10px; padding: 15px; text-align: center; transition: transform 0.2s; }
+    .product-card:hover { transform: scale(1.02); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
     .price { font-size: 20px; font-weight: bold; color: #27ae60; }
     .price-ex-tax { font-size: 14px; color: #3498db; }
     .stock { font-size: 12px; color: #7f8c8d; }
@@ -320,17 +251,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 側邊欄 - 頁面導航
 with st.sidebar:
     st.title("🏪 POS 系統")
     page = st.radio("選單", ["收銀前台", "商品管理", "會員管理", "銷售報表"])
-    
     st.divider()
     stats = get_daily_sales()
     st.metric("今日營收", f"${stats['revenue']:,.0f}")
     st.metric("訂單數", stats['orders'])
 
-# ============ 頁面：收銀前台 ============
 if page == "收銀前台":
     col1, col2 = st.columns([3, 1])
     
@@ -342,38 +270,32 @@ if page == "收銀前台":
             cols = st.columns(4)
             for i, p in enumerate(products):
                 with cols[i % 4]:
-                    with st.container():
-                        st.markdown(f"""
-                        <div class="product-card">
-                            <b>{p[1]}</b><br>
-                            <span class="price">${p[3]:.1f}</span> <span class="price-label">(含稅)</span><br>
-                            <span class="price-ex-tax">未稅: ${p[2]:.1f}</span><br>
-                            <span class="stock {'stock-low' if p[5] <= 5 else ''}">庫存: {p[5]}</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if p[5] > 0:
-                            if st.button(f"加入購物車", key=f"add_{p[0]}"):
-                                found = False
-                                for item in st.session_state.cart:
-                                    if item['product_id'] == p[0]:
-                                        if item['quantity'] < p[5]:
-                                            item['quantity'] += 1
-                                            item['subtotal'] = item['quantity'] * item['price']
-                                            found = True
-                                        break
-                                if not found:
-                                    st.session_state.cart.append({
-                                        'product_id': p[0],
-                                        'name': p[1],
-                                        'price': p[3],
-                                        'quantity': 1,
-                                        'subtotal': p[3]
-                                    })
-                                st.rerun()
-                        else:
-                            st.button("缺貨", disabled=True, key=f"out_{p[0]}")
-                        st.markdown("<br>", unsafe_allow_html=True)
+                    stock_class = "stock-low" if p[5] <= 5 else ""
+                    st.markdown(f"""
+                    <div class="product-card">
+                        <b>{p[1]}</b><br>
+                        <span class="price">${p[3]:.1f}</span> <span class="price-label">(含稅)</span><br>
+                        <span class="price-ex-tax">未稅: ${p[2]:.1f}</span><br>
+                        <span class="stock {stock_class}">庫存: {p[5]}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if p[5] > 0:
+                        if st.button(f"加入購物車", key=f"add_{p[0]}"):
+                            found = False
+                            for item in st.session_state.cart:
+                                if item['product_id'] == p[0]:
+                                    if item['quantity'] < p[5]:
+                                        item['quantity'] += 1
+                                        item['subtotal'] = item['quantity'] * item['price']
+                                        found = True
+                                    break
+                            if not found:
+                                st.session_state.cart.append({'product_id': p[0], 'name': p[1], 'price': p[3], 'quantity': 1, 'subtotal': p[3]})
+                            st.rerun()
+                    else:
+                        st.button("缺貨", disabled=True, key=f"out_{p[0]}")
+                    st.markdown("<br>", unsafe_allow_html=True)
         else:
             st.info("尚無商品，請先到商品管理新增")
     
@@ -438,14 +360,7 @@ if page == "收銀前台":
                     if cash >= total:
                         change = cash - total
                         member_id = st.session_state.current_member[0] if st.session_state.current_member else None
-                        sale_id = create_sale(
-                            member_id=member_id,
-                            subtotal=subtotal,
-                            discount=discount,
-                            total=total,
-                            cash=cash,
-                            change_amount=change
-                        )
+                        sale_id = create_sale(member_id=member_id, subtotal=subtotal, discount=discount, total=total, cash=cash, change_amount=change)
                         st.session_state.cart = []
                         st.session_state.current_member = None
                         st.success(f"✅ 結帳成功！找零 ${change:.1f}")
@@ -460,7 +375,6 @@ if page == "收銀前台":
         else:
             st.info("購物車是空的")
 
-# ============ 頁面：商品管理 ============
 elif page == "商品管理":
     st.title("📦 商品管理")
     
@@ -471,19 +385,12 @@ elif page == "商品管理":
             with col1:
                 st.markdown("#### 售價資訊")
                 name = st.text_input("商品名稱 *")
-                
-                price_ex_tax = st.number_input(
-                    "售價未稅 *", 
-                    min_value=0.0, 
-                    value=0.0,
-                    step=0.1,
-                    help="輸入售價未稅後，將自動計算含稅價格"
-                )
+                price_ex_tax = st.number_input("售價未稅 *", min_value=0.0, value=0.0, step=0.1, help="輸入售價未稅後，將自動計算含稅價格")
                 
                 if price_ex_tax > 0:
                     calculated_inc_tax = calculate_price_inc_tax(price_ex_tax)
                     st.info(f"💡 自動計算應稅價格: ${calculated_inc_tax:.1f}")
-                
+            
             with col2:
                 st.markdown("#### 其他資訊")
                 cost = st.number_input("成本", min_value=0.0, value=0.0, step=0.1)
@@ -513,26 +420,14 @@ elif page == "商品管理":
                 with c1:
                     new_name = st.text_input("商品名稱", value=p[1], key=f"name_{p[0]}")
                     
-                    new_price_ex_tax = st.number_input(
-                        "售價未稅", 
-                        min_value=0.0, 
-                        value=float(p[2]), 
-                        step=0.1,
-                        key=f"price_ex_tax_{p[0]}"
-                    )
+                    new_price_ex_tax = st.number_input("售價未稅", min_value=0.0, value=float(p[2]), step=0.1, key=f"price_ex_tax_{p[0]}")
                     
                     if new_price_ex_tax != p[2]:
                         calculated_inc = calculate_price_inc_tax(new_price_ex_tax)
                         st.info(f"自動計算: 售價應稅 = ${calculated_inc:.1f}")
                         new_price_inc_tax = calculated_inc
                     else:
-                        new_price_inc_tax = st.number_input(
-                            "售價應稅", 
-                            min_value=0.0, 
-                            value=float(p[3]), 
-                            step=0.1,
-                            key=f"price_inc_tax_{p[0]}"
-                        )
+                        new_price_inc_tax = st.number_input("售價應稅", min_value=0.0, value=float(p[3]), step=0.1, key=f"price_inc_tax_{p[0]}")
                     
                     if new_price_inc_tax != p[3]:
                         calculated_ex = calculate_price_ex_tax(new_price_inc_tax)
@@ -548,10 +443,7 @@ elif page == "商品管理":
                 
                 c3, c4 = st.columns(2)
                 if c3.button("💾 更新", key=f"update_{p[0]}"):
-                    update_product(
-                        p[0], new_name, new_price_ex_tax, new_price_inc_tax, 
-                        new_cost, new_stock, new_barcode, new_category
-                    )
+                    update_product(p[0], new_name, new_price_ex_tax, new_price_inc_tax, new_cost, new_stock, new_barcode, new_category)
                     st.success("已更新！")
                     st.rerun()
                 if c4.button("🗑️ 刪除", key=f"delete_{p[0]}"):
@@ -561,7 +453,6 @@ elif page == "商品管理":
     else:
         st.info("尚無商品")
 
-# ============ 頁面：會員管理 ============
 elif page == "會員管理":
     st.title("👥 會員管理")
     
@@ -587,7 +478,6 @@ elif page == "會員管理":
     else:
         st.info("尚無會員")
 
-# ============ 頁面：銷售報表 ============
 elif page == "銷售報表":
     st.title("📊 銷售報表")
     
