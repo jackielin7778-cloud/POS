@@ -1,13 +1,8 @@
-"""POS 收銀系統 v1.5.2"""
+"""POS 收銀系統 v1.5.3"""
 import streamlit as st
 import pandas as pd
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
-
-# 強制重建資料庫（執行一次後可刪除這段）
-import os
-if os.path.exists("pos.db"):
-    os.remove("pos.db")
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -58,7 +53,6 @@ if page == "收銀前台":
                 if p[5] is None:
                     p[5] = 0
                 with cols[i % 4]:
-                    # 修復：用 st.write 不用 HTML
                     st.write(f"**{p[1]}**")
                     st.caption(f"含稅: ${p[3]} | 未稅: ${p[2]} | 庫存: {p[5]}")
                     if (p[5] or 0) > 0 and st.button(f"加入購物車", key=f"add_{p[0]}"):
