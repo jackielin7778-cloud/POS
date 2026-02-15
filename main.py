@@ -1,6 +1,3 @@
-這是我的失誤！之前貼出的 code 有問題。以下是**正確的 main.py**，請重新复制：
-
-```python
 """
 POS 收銀系統 - Streamlit Web Application
 """
