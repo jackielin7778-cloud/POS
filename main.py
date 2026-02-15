@@ -1,10 +1,10 @@
-
 """POS 收銀系統 v1.5.3"""
 import streamlit as st
 import pandas as pd
 import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
+from database import get_member_by_phone
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -77,7 +77,6 @@ if page == "收銀前台":
         
         member_search = st.text_input("輸入會員電話", placeholder="09xxxxxxxx", key="member_search")
         if member_search:
-            from database import get_member_by_phone
             member = get_member_by_phone(member_search)
             if member:
                 st.session_state.selected_member = member
