@@ -1,8 +1,13 @@
-"""POS 收銀系統 v1.5.3"""
+"""POS 收銀系統 v1.5.2"""
 import streamlit as st
 import pandas as pd
+import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
+
+# ⚠️ 強制重建資料庫（執行一次後請刪除這3行！）
+if os.path.exists("pos.db"):
+    os.remove("pos.db")
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -67,6 +72,34 @@ if page == "收銀前台":
 
     with col2:
         st.markdown("### 🛒 購物車")
+        
+        # 會員輸入區塊
+        st.markdown("#### 👤 會員")
+        if 'selected_member' not in st.session_state:
+            st.session_state.selected_member = None
+        
+        member_search = st.text_input("輸入會員電話", placeholder="09xxxxxxxx", key="member_search")
+        if member_search:
+            from database import get_member_by_phone
+            member = get_member_by_phone(member_search)
+            if member:
+                st.session_state.selected_member = member
+                st.success(f"✅ 已登入: {member[1]}")
+            else:
+                st.warning("找不到會員")
+                if st.button("清除"):
+                    st.session_state.selected_member = None
+                    st.rerun()
+        
+        if st.session_state.selected_member:
+            m = st.session_state.selected_member
+            st.info(f"會員: {m[1]} | 電話: {m[2]} | 積分: {m[4]}")
+            if st.button("解除登入"):
+                st.session_state.selected_member = None
+                st.rerun()
+        
+        st.markdown("---")
+        
         for i, item in enumerate(st.session_state.cart):
             c1, c2, c3 = st.columns([2, 1, 1])
             c1.markdown(f"**{item['name']}**")
@@ -87,8 +120,10 @@ if page == "收銀前台":
                 if st.form_submit_button("💰 結帳"):
                     if cash >= total:
                         change = cash - total
-                        create_sale(None, subtotal, discount, total, cash, change, st.session_state.cart)
+                        member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
+                        create_sale(member_id, subtotal, discount, total, cash, change, st.session_state.cart)
                         st.session_state.cart = []
+                        st.session_state.selected_member = None
                         st.success(f"✅ 找零 ${change}")
                         st.rerun()
 
