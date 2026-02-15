@@ -502,9 +502,3 @@ elif page == "銷售報表":
             st.dataframe(top_df, use_container_width=True)
     else:
         st.info("查無銷售記錄")
-```
-
-請用這版正確的 code 替换您現在的 main.py！
-
-Tokens: 19 in / 428 out  
-Context: 0/200k (0%)
