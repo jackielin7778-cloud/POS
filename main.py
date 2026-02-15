@@ -516,11 +516,3 @@ elif page == "銷售報表":
             st.dataframe(top_df, use_container_width=True)
     else:
         st.info("查無銷售記錄")
-```
-
----
-
-接下來要貼 **database.py** 還是 **requirements.txt**？
-
-Tokens: 22 in / 312 out  
-Context: 0/200k (0%)
