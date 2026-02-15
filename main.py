@@ -1,13 +1,10 @@
-"""POS 收銀系統 v1.5.2"""
+
+"""POS 收銀系統 v1.5.3"""
 import streamlit as st
 import pandas as pd
 import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
-
-# ⚠️ 強制重建資料庫（執行一次後請刪除這3行！）
-if os.path.exists("pos.db"):
-    os.remove("pos.db")
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
