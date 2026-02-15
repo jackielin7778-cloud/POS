@@ -1,9 +1,3 @@
-import os
-
-# 啟動時刪除舊資料庫（只執行一次！）
-if os.path.exists("pos.db"):
-    os.remove("pos.db")
-    st.warning("舊資料庫已刪除，請移除這段程式碼並重新執行")
 """POS 收銀系統 v1.5.1"""
 import streamlit as st
 import pandas as pd
