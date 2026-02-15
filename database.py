@@ -1,6 +1,3 @@
-好的主人！這是 **database.py**：
-
-```python
 """
 POS 收銀系統 - Database Module
 """
@@ -268,11 +265,3 @@ def get_top_products(limit=10):
 
 # 初始化資料庫
 init_db()
-```
-
----
-
-最後 **requirements.txt** 要貼嗎？
-
-Tokens: 15 in / 305 out  
-Context: 0/200k (0%)
