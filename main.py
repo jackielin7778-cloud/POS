@@ -371,14 +371,26 @@ elif page == "銷售報表":
     if sales:
         df = pd.DataFrame(sales, columns=["ID", "會員", "小計", "折扣", "總額", "收款", "找零", "方式", "時間", "會員名"])
         st.dataframe(df)
+        
+        # 統計
         col1, col2, col3 = st.columns(3)
         col1.metric("總營收", f"${df['總額'].sum():,.0f}")
-        col2.metric("總訂單", len(df))
-        col3.metric("平均", f"${df['總額'].mean():,.0f}")
+        col2.metric("總訂單數", len(df))
+        col3.metric("平均訂單", f"${df['總額'].mean():,.0f}")
         
-        st.subheader("📈 趨勢")
-        df['日期'] = pd.to_datetime(df['時間']).dt.date
-        st.line_chart(df.groupby('日期')['總額'].sum())
+        # 圖表
+        st.subheader("📈 營收趨勢")
+        try:
+            df['日期'] = pd.to_datetime(df['時間']).dt.date
+            daily = df.groupby('日期')['總額'].sum().sort_index()
+            st.line_chart(daily)
+            # 顯示數據
+            st.write("每日營收：")
+            st.dataframe(daily)
+        except Exception as e:
+            st.warning(f"無法顯示趨勢圖：{str(e)}")
+    else:
+        st.info("尚無銷售資料")
 
 
 elif page == "資料管理":
