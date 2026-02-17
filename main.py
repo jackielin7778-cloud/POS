@@ -7,7 +7,6 @@ import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
 from database import get_member_by_phone, get_promotions, add_promotion, delete_promotion, calculate_promotion
-from datetime import datetime
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -16,14 +15,26 @@ if 'cart' not in st.session_state:
     st.session_state.cart = []
 
 
-# 銷售完成彈跳視窗（必須在最前面）
+# 銷售完成訊息（模擬彈跳視窗）
 if 'sale_completed' in st.session_state and st.session_state.sale_completed:
-    with st.dialog("✅ 交易完成"):
-        st.success(f"收款 ${st.session_state.last_sale['cash']} 元，找零 ${st.session_state.last_sale['change']} 元")
-        if st.button("✅ 完成"):
-            st.session_state.sale_completed = False
-            st.session_state.last_sale = {}
-            st.rerun()
+    st.markdown(f"""
+    <div style="background-color: #d4edda; padding: 20px; border-radius: 10px; border: 2px solid #28a745; text-align: center; margin: 20px 0;">
+        <h2 style="color: #28a745; margin: 0;">✅ 交易完成</h2>
+        <h3 style="color: #155724; margin: 10px 0;">收款 ${st.session_state.last_sale['cash']} 元，找零 ${st.session_state.last_sale['change']} 元</h3>
+        <p style="color: #666;">3秒後自動進入下一筆交易...</p>
+    </div>
+    <script>
+        setTimeout(function(){
+            window.location.reload();
+        }, 3000);
+    </script>
+    """, unsafe_allow_html=True)
+    
+    # 清除狀態
+    st.session_state.sale_completed = False
+    st.session_state.last_sale = {}
+    st.session_state.cart = []
+    st.session_state.selected_member = None
 
 
 def calculate_price_inc_tax(price_ex_tax):
@@ -174,10 +185,8 @@ if page == "收銀前台":
             
             st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount:.1f}<br>### 總計: ${total}", unsafe_allow_html=True)
             
-            # 收款輸入
             cash_input = st.text_input("收款金額（留空或0表示剛剛好）", value="", placeholder="輸入金額")
             
-            # 計算找零
             if cash_input == "" or cash_input == "0":
                 cash = total
                 change = 0
@@ -195,14 +204,8 @@ if page == "收銀前台":
                     total_discount = discount + promo_discount
                     create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
                     
-                    # 記錄銷售資訊並彈跳視窗
                     st.session_state.sale_completed = True
                     st.session_state.last_sale = {'cash': cash, 'change': change}
-                    
-                    # 清空購物車
-                    st.session_state.cart = []
-                    st.session_state.selected_member = None
-                    
                     st.rerun()
 
 
