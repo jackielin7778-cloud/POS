@@ -159,22 +159,29 @@ if page == "收銀前台":
                 st.success(f"🎉 促銷折扣: -${promo_discount:.1f}")
             
             discount = st.number_input("折扣", 0, int(subtotal), 0)
-            # 四捨五入到整數（傳統方式）
+            # 四捨五入到整數
             total = int(subtotal - discount - promo_discount + 0.5)
             
             st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount:.1f}<br>### 總計: ${total}", unsafe_allow_html=True)
             
             with st.form("f"):
-                cash = st.number_input("收款", min_value=0, value=int(total))
+                cash_input = st.text_input("收款（留空或0表示剛剛好）", value="", placeholder="輸入金額或不填")
                 if st.form_submit_button("💰 結帳"):
+                    # 如果留空或輸入0，表示支付金額剛剛好
+                    if cash_input == "" or cash_input == "0":
+                        cash = total
+                        change = 0
+                    else:
+                        cash = float(cash_input)
+                        change = int(cash - total + 0.5) if cash >= total else 0
+                    
                     if cash >= total:
-                        change = int(cash - total + 0.5)
                         member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
                         total_discount = discount + promo_discount
                         create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
                         st.session_state.cart = []
                         st.session_state.selected_member = None
-                        st.success(f"✅ 找零 ${change}")
+                        st.success(f"✅ 收款 ${cash}，找零 ${change}")
                         st.rerun()
 
 
