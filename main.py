@@ -1,10 +1,3 @@
-已修正！現在會顯示每日營收數據表，如果圖表有問題也會顯示錯誤原因。
-
----
-
-## 完整 app.py
-
-```python
 """
 POS 收銀系統 v1.6.0 - 促銷版
 """
@@ -410,11 +403,3 @@ elif page == "資料管理":
                 st.download_button(label="下載資料庫", data=f, file_name="pos_backup.db", mime="application/octet-stream")
         else:
             st.info("資料庫尚未建立")
-```
-
----
-
-現在銷售報表的趨勢圖會：
-1. 嘗試顯示曲線圖
-2. 如果有問題會顯示錯誤原因
-3. 下面會顯示每日營收數據表 🎷
