@@ -158,13 +158,13 @@ if page == "收銀前台":
             if promo_discount > 0:
                 st.success(f"🎉 促銷折扣: -${promo_discount:.1f}")
             
-            discount = st.number_input("折扣", 0, int(subtotal), 0)
+            discount = st.number_input("折扣", min_value=0.0, value=0.0, step=1.0)
             total = round((subtotal - discount - promo_discount), 1)
             
             st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount:.1f}<br>### 總計: ${total}", unsafe_allow_html=True)
             
             with st.form("f"):
-                cash = st.number_input("收款", min_value=0, value=float(total))
+                cash = st.number_input("收款", min_value=0.0, value=total, step=0.1)
                 if st.form_submit_button("💰 結帳"):
                     if cash >= total:
                         change = round(cash - total, 1)
