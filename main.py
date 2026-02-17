@@ -72,7 +72,6 @@ if page == "收銀前台":
                     st.write(f"**{p[1]}**{promo_text}")
                     st.caption(f"含稅: ${p[3]} | 未稅: ${p[2]} | 庫存: {p[5]}")
                     if (p[5] or 0) > 0 and st.button(f"加入購物車", key=f"add_{p[0]}"):
-                        # 合併相同商品數量
                         found = False
                         for item in st.session_state.cart:
                             if item['product_id'] == p[0]:
@@ -157,18 +156,18 @@ if page == "收銀前台":
             subtotal = sum(item['subtotal'] for item in st.session_state.cart)
             
             if promo_discount > 0:
-                st.success(f"🎉 促銷折扣: -${promo_discount:.0f}")
+                st.success(f"🎉 促銷折扣: -${promo_discount:.1f}")
             
             discount = st.number_input("折扣", 0, int(subtotal), 0)
-            total = subtotal - discount - promo_discount
+            total = round((subtotal - discount - promo_discount), 1)
             
-            st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount}<br>### 總計: ${total}", unsafe_allow_html=True)
+            st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount:.1f}<br>### 總計: ${total}", unsafe_allow_html=True)
             
             with st.form("f"):
-                cash = st.number_input("收款", min_value=0, value=int(total))
+                cash = st.number_input("收款", min_value=0, value=float(total))
                 if st.form_submit_button("💰 結帳"):
                     if cash >= total:
-                        change = cash - total
+                        change = round(cash - total, 1)
                         member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
                         total_discount = discount + promo_discount
                         create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
