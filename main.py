@@ -1,5 +1,6 @@
 """
-POS 收銀系統 v1.6.0 - 促銷版
+POS 收銀系統 v1.6.1 - 促銷版
+修正：會員總消費顯示問題
 """
 import streamlit as st
 import pandas as pd
@@ -353,7 +354,20 @@ elif page == "會員管理":
 
     members = get_members()
     if members:
-        st.dataframe(pd.DataFrame(members, columns=["ID", "姓名", "電話", "Email", "積分", "總消費", "建立時間"]))
+        # 顯示會員列表（使用索引確保正確顯示）
+        member_data = []
+        for m in members:
+            # 使用索引取得資料
+            member_data.append([
+                m[0],  # ID
+                m[1],  # 姓名
+                m[2],  # 電話
+                m[3],  # Email
+                m[4],  # 積分
+                m[5],  # 總消費
+                m[6]   # 建立時間
+            ])
+        st.dataframe(pd.DataFrame(member_data, columns=["ID", "姓名", "電話", "Email", "積分", "總消費", "建立時間"]))
 
 
 elif page == "銷售報表":
