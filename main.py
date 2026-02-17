@@ -15,31 +15,6 @@ if 'cart' not in st.session_state:
     st.session_state.cart = []
 
 
-# 銷售完成訊息（模擬彈跳視窗）
-if 'sale_completed' in st.session_state and st.session_state.sale_completed:
-    cash = st.session_state.last_sale['cash']
-    change = st.session_state.last_sale['change']
-    html = """
-    <div style="background-color: #d4edda; padding: 20px; border-radius: 10px; border: 2px solid #28a745; text-align: center; margin: 20px 0;">
-        <h2 style="color: #28a745; margin: 0;">✅ 交易完成</h2>
-        <h3 style="color: #155724; margin: 10px 0;">收款 $""" + str(cash) + """ 元，找零 $""" + str(change) + """ 元</h3>
-        <p style="color: #666;">3秒後自動進入下一筆交易...</p>
-    </div>
-    <script>
-        setTimeout(function(){
-            window.location.reload();
-        }, 3000);
-    </script>
-    """
-    st.markdown(html, unsafe_allow_html=True)
-    
-    # 清除狀態
-    st.session_state.sale_completed = False
-    st.session_state.last_sale = {}
-    st.session_state.cart = []
-    st.session_state.selected_member = None
-
-
 def calculate_price_inc_tax(price_ex_tax):
     if not price_ex_tax:
         return 0.0
@@ -207,8 +182,25 @@ if page == "收銀前台":
                     total_discount = discount + promo_discount
                     create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
                     
-                    st.session_state.sale_completed = True
-                    st.session_state.last_sale = {'cash': cash, 'change': change}
+                    # 顯示完成訊息（彈跳視窗）
+                    html = """
+                    <div style="background-color: #d4edda; padding: 20px; border-radius: 10px; border: 2px solid #28a745; text-align: center; margin: 20px 0;">
+                        <h2 style="color: #28a745; margin: 0;">✅ 交易完成</h2>
+                        <h3 style="color: #155724; margin: 10px 0;">收款 $""" + str(cash) + """ 元，找零 $""" + str(change) + """ 元</h3>
+                        <p style="color: #666;">3秒後自動進入下一筆交易...</p>
+                    </div>
+                    <script>
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 3000);
+                    </script>
+                    """
+                    st.markdown(html, unsafe_allow_html=True)
+                    
+                    # 清空購物車
+                    st.session_state.cart = []
+                    st.session_state.selected_member = None
+                    
                     st.rerun()
 
 
