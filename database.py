@@ -20,12 +20,10 @@ def init_db():
         id INTEGER PRIMARY KEY, name TEXT, price_ex_tax REAL, price_inc_tax REAL, 
         cost REAL, stock INTEGER, barcode TEXT, category TEXT, created_at TIMESTAMP)''')
     
-    # 會員資料表
     cursor.execute('''CREATE TABLE IF NOT EXISTS members (
         id INTEGER PRIMARY KEY, name TEXT, phone TEXT UNIQUE, email TEXT, 
         points INTEGER, total_spent REAL, created_at TIMESTAMP)''')
     
-    # 銷售資料表
     cursor.execute('''CREATE TABLE IF NOT EXISTS sales (
         id INTEGER PRIMARY KEY, member_id INTEGER, subtotal REAL, discount REAL, 
         total REAL, cash REAL, change_amount REAL, payment_method TEXT, created_at TIMESTAMP)''')
@@ -34,15 +32,15 @@ def init_db():
         id INTEGER PRIMARY KEY, sale_id INTEGER, product_id INTEGER, product_name TEXT, 
         quantity INTEGER, unit_price REAL, subtotal REAL)''')
     
-    # 促銷資料表（新增）
+    # 促銷資料表
     cursor.execute('''CREATE TABLE IF NOT EXISTS promotions (
         id INTEGER PRIMARY KEY,
         name TEXT,
         type TEXT,
         value REAL,
         product_id INTEGER,
-        min_quantity INTEGER,
-        min_amount REAL,
+        min_quantity INTEGER DEFAULT 1,
+        min_amount REAL DEFAULT 0,
         start_date TEXT,
         end_date TEXT,
         is_active INTEGER DEFAULT 1,
@@ -160,7 +158,7 @@ def get_daily_sales():
     return {'orders': result[0] or 0, 'revenue': result[1] or 0}
 
 
-# ---------- 促銷（新增）----------
+# ---------- 促銷 ----------
 
 def get_promotions(product_id=None):
     """取得促銷列表"""
@@ -224,7 +222,7 @@ def calculate_promotion(item, promotions):
         # 第二件折扣
         elif p['type'] == 'second_discount':
             if qty >= 2:
-                discount += price * (p['value'] / 100)  # 第二件折扣%
+                discount += price * (p['value'] / 100)
         
         # 滿額折扣
         elif p['type'] == 'amount':
