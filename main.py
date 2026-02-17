@@ -7,7 +7,6 @@ import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
 from database import get_member_by_phone, get_promotions, add_promotion, delete_promotion, calculate_promotion
-from datetime import datetime
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -58,7 +57,6 @@ if page == "收銀前台":
                 if p[5] is None:
                     p[5] = 0
                 
-                # 檢查是否有促銷
                 promos = get_promotions(p[0])
                 promo_text = ""
                 if promos:
@@ -74,19 +72,27 @@ if page == "收銀前台":
                     st.write(f"**{p[1]}**{promo_text}")
                     st.caption(f"含稅: ${p[3]} | 未稅: ${p[2]} | 庫存: {p[5]}")
                     if (p[5] or 0) > 0 and st.button(f"加入購物車", key=f"add_{p[0]}"):
-                        st.session_state.cart.append({
-                            'product_id': p[0], 
-                            'name': p[1], 
-                            'price': p[3], 
-                            'quantity': 1, 
-                            'subtotal': p[3]
-                        })
+                        # 合併相同商品數量
+                        found = False
+                        for item in st.session_state.cart:
+                            if item['product_id'] == p[0]:
+                                item['quantity'] += 1
+                                item['subtotal'] = item['quantity'] * item['price']
+                                found = True
+                                break
+                        if not found:
+                            st.session_state.cart.append({
+                                'product_id': p[0], 
+                                'name': p[1], 
+                                'price': p[3], 
+                                'quantity': 1, 
+                                'subtotal': p[3]
+                            })
                         st.rerun()
 
     with col2:
         st.markdown("### 🛒 購物車")
         
-        # 會員
         if 'selected_member' not in st.session_state:
             st.session_state.selected_member = None
         
@@ -111,11 +117,9 @@ if page == "收銀前台":
         
         st.markdown("---")
         
-        # 購物車並計算促銷
         promo_discount = 0
         
         for i, item in enumerate(st.session_state.cart):
-            # 檢查促銷
             promos = get_promotions(item['product_id'])
             item_discount = 0
             
@@ -123,16 +127,30 @@ if page == "收銀前台":
                 item_discount = calculate_promotion(item, promos)
                 promo_discount += item_discount
             
-            c1, c2, c3 = st.columns([2, 1, 1])
+            c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
             c1.markdown(f"**{item['name']}**")
             c2.write(f"x{item['quantity']}")
-            if item_discount > 0:
-                c3.markdown(f"~~${item['subtotal']}~~ 💰${item['subtotal'] - item_discount}")
-            else:
-                c3.write(f"${item['subtotal']}")
             
-            if st.button("❌", key=f"del_{i}"):
-                st.session_state.cart.pop(i)
+            if c3.button("➕", key=f"plus_{i}"):
+                st.session_state.cart[i]['quantity'] += 1
+                st.session_state.cart[i]['subtotal'] = st.session_state.cart[i]['quantity'] * st.session_state.cart[i]['price']
+                st.rerun()
+            if c4.button("➖", key=f"minus_{i}"):
+                if st.session_state.cart[i]['quantity'] > 1:
+                    st.session_state.cart[i]['quantity'] -= 1
+                    st.session_state.cart[i]['subtotal'] = st.session_state.cart[i]['quantity'] * st.session_state.cart[i]['price']
+                else:
+                    st.session_state.cart.pop(i)
+                st.rerun()
+            
+            if item_discount > 0:
+                c5.markdown(f"~~${item['subtotal']}~~ 💰${item['subtotal'] - item_discount}")
+            else:
+                c5.write(f"${item['subtotal']}")
+
+        if len(st.session_state.cart) > 0:
+            if st.button("🗑️ 清空購物車"):
+                st.session_state.cart = []
                 st.rerun()
 
         if st.session_state.cart:
