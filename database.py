@@ -5,14 +5,12 @@ DB_PATH = "pos.db"
 
 
 def get_connection():
-    """建立資料庫連線"""
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db():
-    """初始化資料庫"""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -32,26 +30,14 @@ def init_db():
         id INTEGER PRIMARY KEY, sale_id INTEGER, product_id INTEGER, product_name TEXT, 
         quantity INTEGER, unit_price REAL, subtotal REAL)''')
     
-    # 促銷資料表
     cursor.execute('''CREATE TABLE IF NOT EXISTS promotions (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        type TEXT,
-        value REAL,
-        product_id INTEGER,
-        min_quantity INTEGER DEFAULT 1,
-        min_amount REAL DEFAULT 0,
-        start_date TEXT,
-        end_date TEXT,
-        is_active INTEGER DEFAULT 1,
-        created_at TIMESTAMP
-    )''')
+        id INTEGER PRIMARY KEY, name TEXT, type TEXT, value REAL, product_id INTEGER,
+        min_quantity INTEGER DEFAULT 1, min_amount REAL DEFAULT 0,
+        start_date TEXT, end_date TEXT, is_active INTEGER DEFAULT 1, created_at TIMESTAMP)''')
 
     conn.commit()
     conn.close()
 
-
-# ---------- 商品 ----------
 
 def get_products(search=""):
     conn = get_connection()
@@ -77,11 +63,8 @@ def add_product(name, price_ex_tax, price_inc_tax, cost=0, stock=0, barcode="", 
 def update_product(product_id, name, price_ex_tax, price_inc_tax, cost, stock, barcode, category):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE products 
-        SET name=?, price_ex_tax=?, price_inc_tax=?, cost=?, stock=?, barcode=?, category=? 
-        WHERE id=?
-    """, (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category, product_id))
+    cursor.execute("""UPDATE products SET name=?, price_ex_tax=?, price_inc_tax=?, cost=?, stock=?, barcode=?, category=? WHERE id=?""", 
+        (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category, product_id))
     conn.commit()
     conn.close()
 
@@ -93,8 +76,6 @@ def delete_product(product_id):
     conn.commit()
     conn.close()
 
-
-# ---------- 會員 ----------
 
 def get_members():
     conn = get_connection()
@@ -121,8 +102,6 @@ def get_member_by_phone(phone):
     conn.close()
     return member
 
-
-# ---------- 銷售 ----------
 
 def create_sale(member_id, subtotal, discount, total, cash, change_amount, items=None):
     conn = get_connection()
@@ -159,9 +138,7 @@ def get_daily_sales():
 
 
 # ---------- 促銷 ----------
-
 def get_promotions(product_id=None):
-    """取得促銷列表"""
     conn = get_connection()
     cursor = conn.cursor()
     if product_id:
@@ -174,19 +151,16 @@ def get_promotions(product_id=None):
 
 
 def add_promotion(name, promo_type, value, product_id=None, min_quantity=1, min_amount=0, start_date=None, end_date=None):
-    """新增促銷"""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO promotions (name, type, value, product_id, min_quantity, min_amount, start_date, end_date, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-    """, (name, promo_type, value, product_id, min_quantity, min_amount, start_date, end_date))
+    cursor.execute("""INSERT INTO promotions (name, type, value, product_id, min_quantity, min_amount, start_date, end_date, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)""", 
+        (name, promo_type, value, product_id, min_quantity, min_amount, start_date, end_date))
     conn.commit()
     conn.close()
 
 
 def delete_promotion(promo_id):
-    """刪除促銷"""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM promotions WHERE id = ?", (promo_id,))
@@ -195,7 +169,6 @@ def delete_promotion(promo_id):
 
 
 def calculate_promotion(item, promotions):
-    """計算單項商品的促銷折扣"""
     if not promotions:
         return 0
     
@@ -206,25 +179,16 @@ def calculate_promotion(item, promotions):
     for p in promotions:
         p = dict(p)
         
-        # 百分比折扣
         if p['type'] == 'percent':
             discount += price * qty * (p['value'] / 100)
-        
-        # 固定金額折扣
         elif p['type'] == 'fixed':
             discount += p['value']
-        
-        # 買一送一
         elif p['type'] == 'bogo':
             free_items = qty // 2
             discount += free_items * price
-        
-        # 第二件折扣
         elif p['type'] == 'second_discount':
             if qty >= 2:
                 discount += price * (p['value'] / 100)
-        
-        # 滿額折扣
         elif p['type'] == 'amount':
             if item['subtotal'] >= p['min_amount']:
                 discount += p['value']
