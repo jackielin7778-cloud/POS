@@ -1,10 +1,14 @@
-"""POS 收銀系統 v1.5.3"""
+"""
+POS 收銀系統 v1.5.3 - 加強版
+新增：匯入匯出功能
+"""
 import streamlit as st
 import pandas as pd
 import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
 from database import get_member_by_phone
+import io
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -35,7 +39,7 @@ def calculate_price_ex_tax(price_inc_tax):
 
 with st.sidebar:
     st.title("🏪 POS 系統")
-    page = st.radio("選單", ["收銀前台", "商品管理", "會員管理", "銷售報表"])
+    page = st.radio("選單", ["收銀前台", "商品管理", "會員管理", "銷售報表", "資料管理"])
     stats = get_daily_sales()
     st.metric("今日營收", f"${stats['revenue']:,.0f}")
     st.metric("訂單數", stats['orders'])
@@ -127,6 +131,53 @@ if page == "收銀前台":
 elif page == "商品管理":
     st.title("📦 商品管理")
 
+    # 匯入匯出區塊
+    with st.expander("📥 匯入 / 📤 匯出"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📤 匯出商品")
+            if st.button("匯出商品 CSV"):
+                products = get_products()
+                df = pd.DataFrame(products, columns=["ID", "名稱", "售價未稅", "售價含稅", "成本", "庫存", "條碼", "類別", "建立時間"])
+                csv = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="下載 CSV",
+                    data=csv,
+                    file_name="products.csv",
+                    mime="text/csv"
+                )
+        
+        with col2:
+            st.subheader("📥 匯入商品")
+            uploaded_file = st.file_uploader("選擇 CSV 檔案", type=['csv'])
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    st.write("預覽：")
+                    st.dataframe(df.head())
+                    
+                    if st.button("確認匯入"):
+                        import_count = 0
+                        for _, row in df.iterrows():
+                            try:
+                                add_product(
+                                    name=str(row['名稱']),
+                                    price_ex_tax=float(row['售價未稅']) if pd.notna(row['售價未稅']) else 0,
+                                    price_inc_tax=float(row['售價含稅']) if pd.notna(row['售價含稅']) else 0,
+                                    cost=float(row['成本']) if pd.notna(row['成本']) else 0,
+                                    stock=int(row['庫存']) if pd.notna(row['庫存']) else 0,
+                                    barcode=str(row['條碼']) if pd.notna(row['條碼']) else "",
+                                    category=str(row['類別']) if pd.notna(row['類別']) else ""
+                                )
+                                import_count += 1
+                            except Exception as e:
+                                continue
+                        st.success(f"✅ 成功匯入 {import_count} 筆商品")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 匯入失敗: {str(e)}")
+
     with st.expander("➕ 新增商品"):
         with st.form("add"):
             name = st.text_input("商品名稱")
@@ -175,6 +226,49 @@ elif page == "商品管理":
 elif page == "會員管理":
     st.title("👥 會員管理")
 
+    # 匯入匯出區塊
+    with st.expander("📥 匯入 / 📤 匯出"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📤 匯出會員")
+            if st.button("匯出會員 CSV"):
+                members = get_members()
+                df = pd.DataFrame(members, columns=["ID", "姓名", "電話", "Email", "積分", "總消費", "建立時間"])
+                csv = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="下載 CSV",
+                    data=csv,
+                    file_name="members.csv",
+                    mime="text/csv"
+                )
+        
+        with col2:
+            st.subheader("📥 匯入會員")
+            uploaded_file = st.file_uploader("選擇 CSV 檔案", type=['csv'], key="member_upload")
+            if uploaded_file is not None:
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    st.write("預覽：")
+                    st.dataframe(df.head())
+                    
+                    if st.button("確認匯入會員"):
+                        import_count = 0
+                        for _, row in df.iterrows():
+                            try:
+                                add_member(
+                                    name=str(row['姓名']),
+                                    phone=str(row['電話']),
+                                    email=str(row['Email']) if pd.notna(row['Email']) else ""
+                                )
+                                import_count += 1
+                            except Exception as e:
+                                continue
+                        st.success(f"✅ 成功匯入 {import_count} 筆會員")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 匯入失敗: {str(e)}")
+
     with st.expander("➕ 新增會員"):
         with st.form("am"):
             name = st.text_input("姓名")
@@ -191,8 +285,218 @@ elif page == "會員管理":
 
 elif page == "銷售報表":
     st.title("📊 銷售報表")
+
+    # 匯出區塊
+    with st.expander("📤 匯出銷售資料"):
+        if st.button("匯出銷售 CSV"):
+            sales = get_sales()
+            if sales:
+                df = pd.DataFrame(sales, columns=["ID", "會員ID", "小計", "折扣", "總額", "收款", "找零", "方式", "時間", "會員名"])
+                csv = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="下載 CSV",
+                    data=csv,
+                    file_name="sales.csv",
+                    mime="text/csv"
+                )
+    
     sales = get_sales()
     if sales:
         df = pd.DataFrame(sales, columns=["ID", "會員", "小計", "折扣", "總額", "收款", "找零", "方式", "時間", "會員名"])
         st.dataframe(df)
-        st.metric("總營收", f"${df['總額'].sum():,.0f}")
+        
+        # 統計
+        col1, col2, col3 = st.columns(3)
+        col1.metric("總營收", f"${df['總額'].sum():,.0f}")
+        col2.metric("總訂單數", len(df))
+        col3.metric("平均訂單", f"${df['總額'].mean():,.0f}")
+        
+        # 圖表
+        st.subheader("📈 營收趨勢")
+        df['日期'] = pd.to_datetime(df['時間']).dt.date
+        daily = df.groupby('日期')['總額'].sum()
+        st.line_chart(daily)
+
+
+elif page == "資料管理":
+    st.title("💾 資料管理")
+    
+    st.warning("⚠️ 以下操作會影響資料庫，請先備份！")
+    
+    with st.expander("🗑️ 清除所有資料"):
+        st.write("此操作會清除所有銷售紀錄，但保留商品和會員資料。")
+        if st.button("確認清除銷售資料", type="primary"):
+            st.info("功能開發中...")
+    
+    with st.expander("💾 備份資料庫"):
+        st.write("下載完整的 SQLite 資料庫檔案")
+        if os.path.exists("pos.db"):
+            with open("pos.db", "rb") as f:
+                st.download_button(
+                    label="下載資料庫",
+                    data=f,
+                    file_name="pos_backup.db",
+                    mime="application/octet-stream"
+                )
+        else:
+            st.info("資料庫尚未建立")
+```
+
+---
+
+## 📁 database.py（資料庫模組）
+
+```python
+"""POS 資料庫模組 v1.5.1"""
+import sqlite3
+
+DB_PATH = "pos.db"
+
+
+def get_connection():
+    """建立資料庫連線"""
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    """初始化資料庫"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY, name TEXT, price_ex_tax REAL, price_inc_tax REAL, 
+        cost REAL, stock INTEGER, barcode TEXT, category TEXT, created_at TIMESTAMP)''')
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS members (
+        id INTEGER PRIMARY KEY, name TEXT, phone TEXT UNIQUE, email TEXT, 
+        points INTEGER, total_spent REAL, created_at TIMESTAMP)''')
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS sales (
+        id INTEGER PRIMARY KEY, member_id INTEGER, subtotal REAL, discount REAL, 
+        total REAL, cash REAL, change_amount REAL, payment_method TEXT, created_at TIMESTAMP)''')
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS sale_items (
+        id INTEGER PRIMARY KEY, sale_id INTEGER, product_id INTEGER, product_name TEXT, 
+        quantity INTEGER, unit_price REAL, subtotal REAL)''')
+
+    conn.commit()
+    conn.close()
+
+
+# ---------- 商品 ----------
+
+def get_products(search=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+    if search:
+        cursor.execute("SELECT * FROM products WHERE name LIKE ? OR barcode LIKE ?", (f"%{search}%", f"%{search}%"))
+    else:
+        cursor.execute("SELECT * FROM products")
+    products = cursor.fetchall()
+    conn.close()
+    return products
+
+
+def add_product(name, price_ex_tax, price_inc_tax, cost=0, stock=0, barcode="", category=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO products VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)", 
+        (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category))
+    conn.commit()
+    conn.close()
+
+
+def update_product(product_id, name, price_ex_tax, price_inc_tax, cost, stock, barcode, category):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE products 
+        SET name=?, price_ex_tax=?, price_inc_tax=?, cost=?, stock=?, barcode=?, category=? 
+        WHERE id=?
+    """, (name, price_ex_tax, price_inc_tax, cost, stock, barcode, category, product_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_product(product_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM products WHERE id=?", (product_id,))
+    conn.commit()
+    conn.close()
+
+
+# ---------- 會員 ----------
+
+def get_members():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM members")
+    members = cursor.fetchall()
+    conn.close()
+    return members
+
+
+def add_member(name, phone, email=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO members VALUES (NULL, ?, ?, ?, 0, 0, CURRENT_TIMESTAMP)", (name, phone, email))
+    conn.commit()
+    conn.close()
+
+
+def get_member_by_phone(phone):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM members WHERE phone = ?", (phone,))
+    member = cursor.fetchone()
+    conn.close()
+    return member
+
+
+# ---------- 銷售 ----------
+
+def create_sale(member_id, subtotal, discount, total, cash, change_amount, items=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO sales VALUES (NULL, ?, ?, ?, ?, ?, ?, 'cash', CURRENT_TIMESTAMP)", 
+        (member_id, subtotal, discount, total, cash, change_amount))
+    sale_id = cursor.lastrowid
+    if items:
+        for item in items:
+            cursor.execute("INSERT INTO sale_items VALUES (NULL, ?, ?, ?, ?, ?, ?)", 
+                (sale_id, item['product_id'], item['name'], item['quantity'], item['price'], item['subtotal']))
+            cursor.execute("UPDATE products SET stock = stock - ? WHERE id=?", (item['quantity'], item['product_id']))
+    conn.commit()
+    conn.close()
+    return sale_id
+
+
+def get_sales():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT s.*, m.name FROM sales s LEFT JOIN members m ON s.member_id = m.id ORDER BY s.created_at DESC")
+    sales = cursor.fetchall()
+    conn.close()
+    return sales
+
+
+def get_daily_sales():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*), SUM(total), SUM(discount) FROM sales WHERE date(created_at) = date('now')")
+    result = cursor.fetchone()
+    conn.close()
+    return {'orders': result[0] or 0, 'revenue': result[1] or 0}
+```
+
+---
+
+## 📁 requirements.txt
+
+```
+streamlit>=1.28.0
+pandas>=2.0.0
+openpyxl>=3.1.0
