@@ -1,4 +1,4 @@
-"""POS 資料庫模組 v1.6.0"""
+"""POS 資料庫模組 v1.6.1"""
 import sqlite3
 
 DB_PATH = "pos.db"
