@@ -1,14 +1,14 @@
 """
-POS 收銀系統 v1.5.3 - 加強版
-新增：匯入匯出功能
+POS 收銀系統 v1.6.0 - 促銷版
+新增：促銷功能
 """
 import streamlit as st
 import pandas as pd
 import os
 from database import init_db, get_products, add_product, update_product, delete_product
 from database import get_members, add_member, create_sale, get_sales, get_daily_sales
-from database import get_member_by_phone
-import io
+from database import get_member_by_phone, get_promotions, add_promotion, delete_promotion, calculate_promotion
+from datetime import datetime
 
 init_db()
 st.set_page_config(page_title="POS 收銀系統", page_icon="🏪", layout="wide")
@@ -58,8 +58,21 @@ if page == "收銀前台":
                 p = list(p)
                 if p[5] is None:
                     p[5] = 0
+                
+                # 檢查是否有促銷
+                promos = get_promotions(p[0])
+                promo_text = ""
+                if promos:
+                    promo = dict(promos[0])
+                    if promo['type'] == 'percent':
+                        promo_text = f" 🔥 {int(promo['value'])}%OFF"
+                    elif promo['type'] == 'bogo':
+                        promo_text = " 🔥 買一送一"
+                    elif promo['type'] == 'second_discount':
+                        promo_text = f" 🔥 第2件{int(promo['value'])}%OFF"
+                
                 with cols[i % 4]:
-                    st.write(f"**{p[1]}**")
+                    st.write(f"**{p[1]}**{promo_text}")
                     st.caption(f"含稅: ${p[3]} | 未稅: ${p[2]} | 庫存: {p[5]}")
                     if (p[5] or 0) > 0 and st.button(f"加入購物車", key=f"add_{p[0]}"):
                         st.session_state.cart.append({
@@ -110,10 +123,23 @@ if page == "收銀前台":
                 st.rerun()
 
         if st.session_state.cart:
+            # 計算小計
             subtotal = sum(item['subtotal'] for item in st.session_state.cart)
+            
+            # 計算促銷折扣
+            promo_discount = 0
+            for item in st.session_state.cart:
+                promos = get_promotions(item['product_id'])
+                if promos:
+                    promo_discount += calculate_promotion(item, promos)
+            
+            # 顯示促銷折扣
+            if promo_discount > 0:
+                st.success(f"🎉 促銷折扣: -${promo_discount:.0f}")
+            
             discount = st.number_input("折扣", 0, int(subtotal), 0)
-            total = subtotal - discount
-            st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>### 總計: ${total}", unsafe_allow_html=True)
+            total = subtotal - discount - promo_discount
+            st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount}<br>### 總計: ${total}", unsafe_allow_html=True)
             
             with st.form("f"):
                 cash = st.number_input("收款", min_value=0, value=int(total))
@@ -121,7 +147,9 @@ if page == "收銀前台":
                     if cash >= total:
                         change = cash - total
                         member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
-                        create_sale(member_id, subtotal, discount, total, cash, change, st.session_state.cart)
+                        # 計算實際折扣（含促銷）
+                        total_discount = discount + promo_discount
+                        create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
                         st.session_state.cart = []
                         st.session_state.selected_member = None
                         st.success(f"✅ 找零 ${change}")
@@ -178,50 +206,111 @@ elif page == "商品管理":
                 except Exception as e:
                     st.error(f"❌ 匯入失敗: {str(e)}")
 
-    with st.expander("➕ 新增商品"):
-        with st.form("add"):
-            name = st.text_input("商品名稱")
-            price_ex_tax = st.number_input("售價未稅", min_value=0.0, step=0.1)
-            if price_ex_tax > 0:
-                st.info(f"應稅: ${calculate_price_inc_tax(price_ex_tax)}")
-            cost = st.number_input("成本", min_value=0.0, step=0.1)
-            stock = st.number_input("庫存", min_value=0, step=1)
-            barcode = st.text_input("條碼")
-            category = st.text_input("類別")
-            
-            if st.form_submit_button("儲存") and name and price_ex_tax:
-                add_product(name, price_ex_tax, calculate_price_inc_tax(price_ex_tax), cost, stock, barcode, category)
-                st.success("已新增!")
-                st.rerun()
-
+    # 選擇商品進行管理
     products = get_products()
-    for p in products:
-        p = list(p)
-        with st.expander(f"{p[1]} - 未稅:${p[2]} 應稅:${p[3]}"):
+    product_options = {f"{p[1]} (${p[3]})": p[0] for p in products}
+    
+    if product_options:
+        selected_product = st.selectbox("選擇商品", list(product_options.keys()))
+        product_id = product_options[selected_product]
+        
+        # 取得商品資料
+        product = [p for p in products if p[0] == product_id][0]
+        product = list(product)
+        
+        # 商品基本資料
+        with st.expander("📝 商品基本資料", expanded=True):
             c1, c2 = st.columns(2)
             with c1:
-                new_name = st.text_input("名稱", p[1], key=f"n{p[0]}")
-                new_price_ex = st.number_input("售價未稅", value=float(p[2] or 0), key=f"ex{p[0]}")
-                if new_price_ex != (p[2] or 0):
+                new_name = st.text_input("名稱", product[1])
+                new_price_ex = st.number_input("售價未稅", value=float(product[2] or 0))
+                if new_price_ex != (product[2] or 0):
                     st.info(f"應稅: ${calculate_price_inc_tax(new_price_ex)}")
                     new_price_inc = calculate_price_inc_tax(new_price_ex)
                 else:
-                    new_price_inc = st.number_input("售價應稅", value=float(p[3] or 0), key=f"in{p[0]}")
-                if new_price_inc != (p[3] or 0):
-                    st.info(f"未稅: ${calculate_price_ex_tax(new_price_inc)}")
-                    new_price_ex = calculate_price_ex_tax(new_price_inc)
+                    new_price_inc = st.number_input("售價應稅", value=float(product[3] or 0))
             with c2:
-                new_cost = st.number_input("成本", value=float(p[4] or 0), key=f"c{p[0]}")
-                new_stock = st.number_input("庫存", value=int(p[5] or 0), key=f"s{p[0]}")
-
+                new_cost = st.number_input("成本", value=float(product[4] or 0))
+                new_stock = st.number_input("庫存", value=int(product[5] or 0))
+                new_barcode = st.text_input("條碼", product[6] or "")
+                new_category = st.text_input("類別", product[7] or "")
+            
             col1, col2 = st.columns(2)
-            if col1.button("💾 更新", key=f"u{p[0]}"):
-                update_product(p[0], new_name, new_price_ex, new_price_inc, new_cost, new_stock, p[6] or "", p[7] or "")
+            if col1.button("💾 更新商品"):
+                update_product(product_id, new_name, new_price_ex, new_price_inc, new_cost, new_stock, new_barcode, new_category)
+                st.success("✅ 商品已更新")
                 st.rerun()
-            if col2.button("🗑️ 刪除", key=f"d{p[0]}"):
-                delete_product(p[0])
+            if col2.button("🗑️ 刪除商品", type="primary"):
+                delete_product(product_id)
+                st.success("✅ 商品已刪除")
                 st.rerun()
-
+        
+        # 促銷設定
+        with st.expander("🏷️ 促銷設定", expanded=True):
+            st.write("### 🎫 目前促銷")
+            promos = get_promotions(product_id)
+            
+            if promos:
+                for p in promos:
+                    p = dict(p)
+                    promo_type_name = {
+                        'percent': '百分比折扣',
+                        'fixed': '固定金額折扣',
+                        'bogo': '買一送一',
+                        'second_discount': '第二件折扣',
+                        'amount': '滿額折扣'
+                    }.get(p['type'], p['type'])
+                    
+                    with st.container():
+                        col1, col2, col3 = st.columns([3, 2, 1])
+                        col1.write(f"**{p['name']}**")
+                        col2.write(f"{promo_type_name}: {p['value']}")
+                        if col3.button("🗑️", key=f"del_promo_{p['id']}"):
+                            delete_promotion(p['id'])
+                            st.rerun()
+            else:
+                st.info("尚無促銷設定")
+            
+            st.write("---")
+            st.write("### ➕ 新增促銷")
+            
+            with st.form("add_promo"):
+                promo_name = st.text_input("促銷名稱", placeholder="例如：夏季特惠")
+                promo_type = st.selectbox("促銷類型", 
+                    ['percent', 'fixed', 'bogo', 'second_discount', 'amount'],
+                    format_func=lambda x: {
+                        'percent': '百分比折扣 (%)',
+                        'fixed': '固定金額折扣 ($)',
+                        'bogo': '買一送一 (BOGO)',
+                        'second_discount': '第二件折扣 (%)',
+                        'amount': '滿額折扣 ($)'
+                    }[x]
+                )
+                
+                if promo_type == 'percent':
+                    promo_value = st.slider("折扣百分比", 1, 100, 10, help="例如：20 表示 8 折")
+                    st.caption("例如：20 = 8折（減20%）")
+                elif promo_type == 'fixed':
+                    promo_value = st.number_input("折扣金額", min_value=0.0, value=10.0)
+                elif promo_type == 'bogo':
+                    promo_value = 0
+                    st.caption("買一送一：買2件付1件金額")
+                elif promo_type == 'second_discount':
+                    promo_value = st.slider("第二件折扣", 0, 100, 50, help="第二件的折扣%")
+                    st.caption("例如：50 = 第二件半價")
+                elif promo_type == 'amount':
+                    promo_value = st.number_input("滿額折扣金額", min_value=0.0, value=50.0)
+                    min_amount = st.number_input("最低消費金額", min_value=0.0, value=200.0)
+                
+                if st.form_submit_button("➕ 新增促銷"):
+                    if promo_type == 'amount':
+                        add_promotion(promo_name, promo_type, promo_value, product_id, min_amount=min_amount)
+                    else:
+                        add_promotion(promo_name, promo_type, promo_value, product_id)
+                    st.success("✅ 促銷已新增")
+                    st.rerun()
+    else:
+        st.warning("尚無商品，請先新增商品")
 
 elif page == "會員管理":
     st.title("👥 會員管理")
