@@ -99,7 +99,8 @@ def delete_product(product_id):
 def get_members():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members")
+    # 確保 total_spent 為 0 而不是 NULL
+    cursor.execute("SELECT id, name, phone, email, COALESCE(points, 0) as points, COALESCE(total_spent, 0) as total_spent, created_at FROM members")
     members = cursor.fetchall()
     conn.close()
     return members
