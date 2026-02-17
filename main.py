@@ -43,6 +43,20 @@ with st.sidebar:
     st.metric("今日營收", f"${stats['revenue']:,.0f}")
     st.metric("訂單數", stats['orders'])
 
+# 銷售完成顯示在最上面
+if 'sale_done' in st.session_state and st.session_state.sale_done:
+    st.markdown("""
+    <div style="background-color: #d4edda; padding: 30px; border-radius: 15px; border: 3px solid #28a745; text-align: center; margin: 20px 0;">
+        <h1 style="color: #28a745; margin: 0;">✅ 交易完成</h1>
+        <h2 style="color: #155724; margin: 15px 0;">收款 $""" + str(st.session_state.sale_cash) + """ 元，找零 $""" + str(st.session_state.sale_change) + """ 元</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🔄 下一筆交易"):
+        st.session_state.sale_done = False
+        st.session_state.cart = []
+        st.session_state.selected_member = None
+        st.rerun()
+
 
 if page == "收銀前台":
     st.title("🛒 收銀前台")
@@ -183,15 +197,10 @@ if page == "收銀前台":
                     total_discount = discount + promo_discount
                     create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
                     
-                    st.markdown("""
-                    <div style="background-color: #d4edda; padding: 30px; border-radius: 15px; border: 3px solid #28a745; text-align: center; margin: 20px 0;">
-                        <h1 style="color: #28a745; margin: 0;">✅ 交易完成</h1>
-                        <h2 style="color: #155724; margin: 15px 0;">收款 $""" + str(cash) + """ 元，找零 $""" + str(change) + """ 元</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.session_state.cart = []
-                    st.session_state.selected_member = None
+                    st.session_state.sale_done = True
+                    st.session_state.sale_cash = cash
+                    st.session_state.sale_change = change
+                    st.rerun()
 
 
 elif page == "商品管理":
