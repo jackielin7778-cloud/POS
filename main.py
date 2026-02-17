@@ -17,10 +17,12 @@ if 'cart' not in st.session_state:
 
 # 銷售完成訊息（模擬彈跳視窗）
 if 'sale_completed' in st.session_state and st.session_state.sale_completed:
-    st.markdown(f"""
+    cash = st.session_state.last_sale['cash']
+    change = st.session_state.last_sale['change']
+    html = """
     <div style="background-color: #d4edda; padding: 20px; border-radius: 10px; border: 2px solid #28a745; text-align: center; margin: 20px 0;">
         <h2 style="color: #28a745; margin: 0;">✅ 交易完成</h2>
-        <h3 style="color: #155724; margin: 10px 0;">收款 ${st.session_state.last_sale['cash']} 元，找零 ${st.session_state.last_sale['change']} 元</h3>
+        <h3 style="color: #155724; margin: 10px 0;">收款 $""" + str(cash) + """ 元，找零 $""" + str(change) + """ 元</h3>
         <p style="color: #666;">3秒後自動進入下一筆交易...</p>
     </div>
     <script>
@@ -28,7 +30,8 @@ if 'sale_completed' in st.session_state and st.session_state.sale_completed:
             window.location.reload();
         }, 3000);
     </script>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(html, unsafe_allow_html=True)
     
     # 清除狀態
     st.session_state.sale_completed = False
@@ -211,19 +214,19 @@ if page == "收銀前台":
 
 elif page == "商品管理":
     st.title("📦 商品管理")
-    # ... (商品管理程式碼省略)
+    # ... (省略)
 
 
 elif page == "會員管理":
     st.title("👥 會員管理")
-    # ... (會員管理程式碼省略)
+    # ... (省略)
 
 
 elif page == "銷售報表":
     st.title("📊 銷售報表")
-    # ... (銷售報表程式碼省略)
+    # ... (省略)
 
 
 elif page == "資料管理":
     st.title("💾 資料管理")
-    # ... (資料管理程式碼省略)
+    # ... (省略)
