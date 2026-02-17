@@ -1,4 +1,4 @@
-"""POS 資料庫模組 v1.5.1"""
+"""POS 資料庫模組 v1.6.0"""
 import sqlite3
 
 DB_PATH = "pos.db"
@@ -20,10 +20,12 @@ def init_db():
         id INTEGER PRIMARY KEY, name TEXT, price_ex_tax REAL, price_inc_tax REAL, 
         cost REAL, stock INTEGER, barcode TEXT, category TEXT, created_at TIMESTAMP)''')
     
+    # 會員資料表
     cursor.execute('''CREATE TABLE IF NOT EXISTS members (
         id INTEGER PRIMARY KEY, name TEXT, phone TEXT UNIQUE, email TEXT, 
         points INTEGER, total_spent REAL, created_at TIMESTAMP)''')
     
+    # 銷售資料表
     cursor.execute('''CREATE TABLE IF NOT EXISTS sales (
         id INTEGER PRIMARY KEY, member_id INTEGER, subtotal REAL, discount REAL, 
         total REAL, cash REAL, change_amount REAL, payment_method TEXT, created_at TIMESTAMP)''')
@@ -31,6 +33,21 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS sale_items (
         id INTEGER PRIMARY KEY, sale_id INTEGER, product_id INTEGER, product_name TEXT, 
         quantity INTEGER, unit_price REAL, subtotal REAL)''')
+    
+    # 促銷資料表（新增）
+    cursor.execute('''CREATE TABLE IF NOT EXISTS promotions (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        type TEXT,
+        value REAL,
+        product_id INTEGER,
+        min_quantity INTEGER,
+        min_amount REAL,
+        start_date TEXT,
+        end_date TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP
+    )''')
 
     conn.commit()
     conn.close()
@@ -141,3 +158,77 @@ def get_daily_sales():
     result = cursor.fetchone()
     conn.close()
     return {'orders': result[0] or 0, 'revenue': result[1] or 0}
+
+
+# ---------- 促銷（新增）----------
+
+def get_promotions(product_id=None):
+    """取得促銷列表"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if product_id:
+        cursor.execute("SELECT * FROM promotions WHERE product_id = ? AND is_active = 1", (product_id,))
+    else:
+        cursor.execute("SELECT * FROM promotions WHERE is_active = 1")
+    promotions = cursor.fetchall()
+    conn.close()
+    return promotions
+
+
+def add_promotion(name, promo_type, value, product_id=None, min_quantity=1, min_amount=0, start_date=None, end_date=None):
+    """新增促銷"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO promotions (name, type, value, product_id, min_quantity, min_amount, start_date, end_date, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+    """, (name, promo_type, value, product_id, min_quantity, min_amount, start_date, end_date))
+    conn.commit()
+    conn.close()
+
+
+def delete_promotion(promo_id):
+    """刪除促銷"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM promotions WHERE id = ?", (promo_id,))
+    conn.commit()
+    conn.close()
+
+
+def calculate_promotion(item, promotions):
+    """計算單項商品的促銷折扣"""
+    if not promotions:
+        return 0
+    
+    discount = 0
+    qty = item['quantity']
+    price = item['price']
+    
+    for p in promotions:
+        p = dict(p)
+        
+        # 百分比折扣
+        if p['type'] == 'percent':
+            discount += price * qty * (p['value'] / 100)
+        
+        # 固定金額折扣
+        elif p['type'] == 'fixed':
+            discount += p['value']
+        
+        # 買一送一
+        elif p['type'] == 'bogo':
+            free_items = qty // 2
+            discount += free_items * price
+        
+        # 第二件折扣
+        elif p['type'] == 'second_discount':
+            if qty >= 2:
+                discount += price * (p['value'] / 100)  # 第二件折扣%
+        
+        # 滿額折扣
+        elif p['type'] == 'amount':
+            if item['subtotal'] >= p['min_amount']:
+                discount += p['value']
+    
+    return round(discount, 2)
