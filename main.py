@@ -159,8 +159,8 @@ if page == "收銀前台":
                 st.success(f"🎉 促銷折扣: -${promo_discount:.1f}")
             
             discount = st.number_input("折扣", 0, int(subtotal), 0)
-            # 四捨五入到整數
-            total = round(subtotal - discount - promo_discount)
+            # 四捨五入到整數（傳統方式）
+            total = int(subtotal - discount - promo_discount + 0.5)
             
             st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount:.1f}<br>### 總計: ${total}", unsafe_allow_html=True)
             
@@ -168,7 +168,7 @@ if page == "收銀前台":
                 cash = st.number_input("收款", min_value=0, value=int(total))
                 if st.form_submit_button("💰 結帳"):
                     if cash >= total:
-                        change = round(cash - total)
+                        change = int(cash - total + 0.5)
                         member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
                         total_discount = discount + promo_discount
                         create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
@@ -280,7 +280,7 @@ elif page == "商品管理":
                 promo_type = st.selectbox("促銷類型", 
                     ['percent', 'fixed', 'bogo', 'second_discount', 'amount'],
                     format_func=lambda x: {
-                        'percent': '百分比折扣 (%)', '固定金額 ($)': 'fixed', 
+                        'percent': '百分比折扣 (%)', 'fixed': '固定金額 ($)', 
                         'bogo': '買一送一', 'second_discount': '第二件折扣 (%)', 'amount': '滿額折扣 ($)'
                     }[x])
                 
