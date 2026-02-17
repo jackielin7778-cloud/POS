@@ -182,10 +182,16 @@ if page == "收銀前台":
                     member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
                     total_discount = discount + promo_discount
                     create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
-                    st.success(f"✅ 交易完成！收款 ${cash} 元，找零 ${change} 元")
+                    
+                    st.markdown("""
+                    <div style="background-color: #d4edda; padding: 30px; border-radius: 15px; border: 3px solid #28a745; text-align: center; margin: 20px 0;">
+                        <h1 style="color: #28a745; margin: 0;">✅ 交易完成</h1>
+                        <h2 style="color: #155724; margin: 15px 0;">收款 $""" + str(cash) + """ 元，找零 $""" + str(change) + """ 元</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
                     st.session_state.cart = []
                     st.session_state.selected_member = None
-                    st.rerun()
 
 
 elif page == "商品管理":
