@@ -164,25 +164,36 @@ if page == "收銀前台":
             
             st.markdown(f"**小計:** ${subtotal}<br>**折扣:** -{discount}<br>**促銷:** -{promo_discount:.1f}<br>### 總計: ${total}", unsafe_allow_html=True)
             
-            with st.form("f"):
-                cash_input = st.text_input("收款（留空或0表示剛剛好）", value="", placeholder="輸入金額或不填")
-                if st.form_submit_button("💰 結帳"):
-                    # 如果留空或輸入0，表示支付金額剛剛好
-                    if cash_input == "" or cash_input == "0":
-                        cash = total
-                        change = 0
-                    else:
-                        cash = float(cash_input)
-                        change = int(cash - total + 0.5) if cash >= total else 0
+            # 收款輸入
+            cash_input = st.text_input("收款金額（留空或0表示剛剛好）", value="", placeholder="輸入金額")
+            
+            # 計算找零
+            if cash_input == "" or cash_input == "0":
+                cash = total
+                change = 0
+            else:
+                try:
+                    cash = float(cash_input)
+                    change = int(cash - total + 0.5) if cash >= total else 0
+                except:
+                    cash = total
+                    change = 0
+            
+            if cash >= total:
+                # 結帳按鈕
+                if st.button("💰 結帳", type="primary"):
+                    # 建立銷售記錄
+                    member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
+                    total_discount = discount + promo_discount
+                    create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
                     
-                    if cash >= total:
-                        member_id = st.session_state.selected_member[0] if st.session_state.selected_member else None
-                        total_discount = discount + promo_discount
-                        create_sale(member_id, subtotal, total_discount, total, cash, change, st.session_state.cart)
-                        st.session_state.cart = []
-                        st.session_state.selected_member = None
-                        st.success(f"✅ 收款 ${cash}，找零 ${change}")
-                        st.rerun()
+                    # 清空購物車
+                    st.session_state.cart = []
+                    st.session_state.selected_member = None
+                    
+                    # 顯示完成訊息
+                    st.success(f"✅ 收款 ${cash}，找零 ${change} 元")
+                    st.rerun()
 
 
 elif page == "商品管理":
